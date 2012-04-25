@@ -1,0 +1,21 @@
+---------------------------------------------------------------------------
+
+===========================================================================
+                            General Strategy
+===========================================================================
+
+                             Vinay  Hiremath
+                            Taylor  Fairbank
+---------------------------------------------------------------------------
+
+
+1. Defensive Energy
+    - Stay near our goal.
+    - Position our bot between opponent and ball to intercept their kicks.
+    - If we block a ball, kick it away from our opponent.
+        * Kick it towards their goal if they are on one side.
+        * Kick it towards the far side so that it'll bounce into
+          their goal if they are in the middle.
+    - While not blocking, solve as many sudoku puzzels as we can.
+
+2. 
