@@ -1,1 +1,16 @@
 Still working on this.
+
+#################################################
+           Spimbot Server Instructions
+#################################################
+
+To run the Spimbot server
+    * you must be in the 'server' directory
+    * you must provide the spimbot file
+
+Server instructions are located at the bottom of:
+http://www.cs.uiuc.edu/class/sp12/cs232/assignments/spimbot.html
+
+ex:
+    cd server
+    ./spimbot.macosx -file ./spimbot.s
