@@ -47,12 +47,14 @@ main_kickball:
     #       check if ball is kickable
     #       if (yes):
     #           kick ball
+
     lw   $t2, ball_to_kick
     bltz $t2, main_kickball_end                  # if there are no balls to kick
 
     # make spimbot's velocity 0
     li   $t0, 0
     sw   $t0, 0xffff0010($0)
+
 ###########################################
 #    move $a0, $t2
 #    li   $v0, 1
@@ -71,7 +73,7 @@ main_kickball:
     lw   $t0, 0xffff00d4($0)                     # get angle of ball to goal, BALL_X
     lw   $t1, 0xffff00d8($0)                     # BALL_Y
     lw   $t2, goal_x
-    li   $t3, 150                                # TODO: variable aim for goal's Y pos
+    li   $t3, 150
     sub  $t0, $t0, $t2                           # delta x
     sub  $t1, $t1, $t3                           # delta y
     move $a0, $t0
@@ -84,17 +86,11 @@ main_kickball:
     lw   $t1, 0xffff00b8($0)                     # get our current ENERGY
     li   $t0, 4
     div  $t0, $t1, $t0
-############################################
-#    move $a0, $t0
-#    li   $v0, 1
-#    syscall
-#infiniteD:
-#    j infiniteD
-############################################
     sw   $t0, 0xffff00c8($0)                     # kick with 25% energy, KICK_ENERGY
+
+main_kickball_end:
     li   $t0, -1
     sw   $t0, ball_to_kick
-main_kickball_end:
 
 main_runto:
     # 2.) check closest ball that exists on field
@@ -145,11 +141,17 @@ main_runto_move:
     li   $t0, 0                                  # set velocity to zero
     sw   $t0, 0xffff0010($0)
     j    main_runto                              # look for other balls
+
 main_runto_moveB:
     sw   $t0, 0xffff00d0($0)                     # SELECT_BALL
     lw   $t1, 0xffff00e0($0)                     # BALL_EXISTS
     beq  $t1, 0, main_runto_end                  # check if this ball exists
 
+#########################
+    li   $v0, 1
+    move $a0, $t0
+    syscall
+#########################
                                                  # TODO: check if the ball is moving
     lw   $t4, 0xffff00d4($0)                     # t4 has BALL_X
     lw   $t5, 0xffff00d8($0)                     # t5 has BALL_Y
@@ -158,7 +160,7 @@ main_runto_moveB:
     move $a0, $t4
     move $a1, $t5
 
-    jal arctan                                   # call arctan
+    jal  arctan                                  # call arctan
     move $t4, $v0                                # angle from arctan
     sub  $t4, $t4, 180
 
