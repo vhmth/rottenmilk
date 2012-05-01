@@ -387,6 +387,15 @@ gs_loop:sll    $t2, $t1, $v0        # (1<<i)
 get_singleton_done:
     jr    $ra
 
+## int get_square_begin(int index) {
+##   return (index/GRIDSIZE) * GRIDSIZE;
+## }
+
+get_square_begin:
+	div	$v0, $a0, 3
+	mul	$v0, $v0, 3
+	jr	$ra
+
 ## bool
 ## rule1(int board[9][9]) {
 ##   bool changed = false;
