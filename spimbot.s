@@ -34,12 +34,13 @@ main:
     # figure out which goal we need to score on
     lw   $t0, 0xffff0020($0)                     # SPIMBOT_X
     li   $t3, 150
-    bgt  $t0, $t3, main_while
+    bgt  $t0, $t3, main_request_boards
 
     # we need to shoot for the right goal- default is to shoot to left (goal_x = 0)
     li   $t0, 300
     sw   $t0, goal_x
 
+main_request_boards:
     # request initial boards
     #  - note: only request more when one's been solved (completion based rather than checking every loop)
     la   $t0, boards
@@ -230,14 +231,10 @@ main_return:
     unhandled_str:      .asciiz "Unhandled interrupt type\n"
 
 .ktext 0x80000080
-
 interrupt_handler:
-
-    .set noat
-
+.set noat
     move $k1, $at
-
-    .set at
+.set at
 
     la   $k0, chunkIH
     sw   $a0, 0($k0)
@@ -253,11 +250,11 @@ interrupt_dispatch:
     mfc0 $k0, $13
     beq  $k0, $zero, interrupt_done
 
-    and  $a0, $k0  , 0x2000
-    bne  $a0, 0    , kick_interrupt
+    and  $a0, $k0, 0x2000
+    bne  $a0, 0, kick_interrupt
 
-    and  $a0, $k0  , 0x4000
-    bne  $a0, 0    , puzzle_interrupt
+    and  $a0, $k0, 0x4000
+    bne  $a0, 0, puzzle_interrupt
 
     li   $v0, 4
     la   $a0, unhandled_str
@@ -270,7 +267,7 @@ kick_interrupt:
     li   $a0, -1
 
 kick_interrupt_loop:
-    add  $a0, $a0, 1                             # increment ball looper
+    #add  $a0, $a0, 1                             # increment ball looper
     sw   $a0, 0xffff00d0($0)                     # select ball
     lw   $a1, 0xffff00e0($0)                     # check if ball exists
     beq  $a1, 0, kick_interrupt_loop
