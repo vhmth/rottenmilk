@@ -274,14 +274,17 @@ kick_interrupt_loop:
 
 kick_interrupt_loop_done:
     sw   $a0, ball_to_kick                       # a0 has ball to kick
+    
+    sw   $t0, 0xffff0064($0)                     # acknowledge interrupt: can write any value
     j    interrupt_dispatch
 
 puzzle_interrupt:
-    # board is stored in passed in stack address
+    # board is stored in passed in heap address
     lw   $t0, boards_pending                     # decrement boards_pending
-    sub $t0, $t0, 1
+    sub  $t0, $t0, 1
     sw   $t0, boards_pending
 
+    sw   $t0, 0xffff0068($0)                     # acknowledge interrupt: can write any value
     j    interrupt_dispatch
 
 non_intrpt:
@@ -391,9 +394,9 @@ get_singleton_done:
 ## }
 
 get_square_begin:
-	div	$v0, $a0, 3
-	mul	$v0, $v0, 3
-	jr	$ra
+    div $v0, $a0, 3
+    mul $v0, $v0, 3
+    jr  $ra
 
 ## bool
 ## rule1(int board[9][9]) {
