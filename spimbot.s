@@ -177,10 +177,10 @@ main_sudoku:
 main_sudoku_solve:
     # TODO: handle rule2 and brute force
     lw   $t0, boards_cur
-    muli $t0, $s0, 324
+    mul  $t0, $s0, 324
     la   $s0, boards
     add  $s0, $s0, $t0                           # choose the current board
-    mv   $a0, $s0
+    move $a0, $s0
     jal  rule1
     ori  $t0, $v0, 0                             # check for changes
 
@@ -218,8 +218,6 @@ main_return:
     addi $sp, $sp, 4
 
     jr   $ra
-
-
 
 #============================================================
 # Interrupt Handler
@@ -282,7 +280,7 @@ kick_interrupt_loop_done:
 puzzle_interrupt:
     # board is stored in passed in stack address
     lw   $t0, boards_pending                     # decrement boards_pending
-    subi $t0, $t0, 1
+    sub $t0, $t0, 1
     sw   $t0, boards_pending
 
     j    interrupt_dispatch
