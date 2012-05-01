@@ -39,7 +39,12 @@ main_while:
     #
     #     if (yes):
     #       request X suduko puzzles
+    sw   $t0, num_puzzles
+    bgtz $t0, kickball_main
 
+    # request X suduko puzzles
+
+kickball_main:
     # 2.) check if ball_to_kick is greater than equal to zero
     #
     #     if (yes):
