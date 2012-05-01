@@ -88,9 +88,9 @@ main_kickball:
     sw   $t0, 0xffff00c4($0)                     # set KICK_ORIENTATION
     li   $t0, 1
     li   $t1, 4
-    div.d $t0, $t0, $t1
+    div  $t0, $t0, $t1
     lw   $t1, 0xffff00b8($0)                     # get our current ENERGY
-    mult $t0, $t0, $t1                           # 25% of energy
+    mul $t0, $t0, $t1                           # 25% of energy
     sw   $t0, 0xffff00c8($0)                     # kick with 25% energy, KICK_ENERGY
                                                  # TODO: check how much energy and kick with at most X percent
 main_kickball_end:
@@ -120,9 +120,9 @@ main_runto_while:
     sub  $t4, $t2, $t4                           # delta x
     sub  $t5, $t3, $t5                           # delta y
     li   $t8, 0                                  # temporary distance
-    mult $t7, $t4, $t4
+    mul $t7, $t4, $t4
     add  $t8, $t8, $t7
-    mult $t7, $t5, $t5
+    mul $t7, $t5, $t5
     add  $t8, $t8, $t7                           # t8 has temporary distance
 
     bgt  $t8, $t6, main_runto_whileB             # check if t8 has lowest distance
@@ -138,11 +138,11 @@ main_runto_move:
     lw   $t1, 0xffff00e0($0)                     # BALL_EXISTS
     beq  $t1, 0, main_runto_end                  # check if this ball exists
 
-                                                 #TODO: check if the ball is moving
+                                                 # TODO: check if the ball is moving
     lw   $t4, 0xffff00d4($0)                     # t4 has BALL_X
     lw   $t5, 0xffff00d8($0)                     # t5 has BALL_Y
     sub  $t4, $t2, $t4                           # t4 has delta x
-    sub  $t5, $t3, $t4                           # t5 has delta y
+    sub  $t5, $t3, $t5                           # t5 has delta y
     move $a0, $t4
     move $a1, $t5
 
@@ -207,7 +207,7 @@ interrupt_handler:
 interrupt_dispatch:
 
     mfc0 $k0, $13
-    beq  $k0, $zero, $done
+    beq  $k0, $zero, interrupt_done
 
     and  $a0, $k0  , 0x2000
     bne  $a0, 0    , kick_interrupt
@@ -253,3 +253,65 @@ interrupt_done:
     rfe
     jr   $k0
     nop
+
+
+#======================================================================
+
+#### Code to compute angle ####
+
+.data
+three:  .float 3.0
+five:   .float 5.0
+PI:     .float 3.14159
+F180:   .float 180.0
+
+.text
+
+# use a Taylor series approximation to compute arctan(x,y)
+
+arctan:                      # a0 = delta_x, a1 = delta_y
+                             # t0 = abs(a0), t1 = abs(a1)
+        abs   $t0, $a0       # t0 = |delta_x|
+        abs   $t1, $a1       # t1 = |delta_y|
+        li    $v0, 0         # v0 = angle
+        ble   $t1, $t0, no_TURN_90
+
+                             # if (abs(y) > abs(x)) { rotate 90 degrees }
+        move  $v0, $a1       # temp = y
+        sub   $a1, $0, $a0   # y = -x
+        move  $a0, $v0       # x = temp
+        li    $v0, 90        # angle = 90.0
+
+no_TURN_90:
+        bge   $a0, $0, pos_x       # skip if (x >= 0.0)
+        addi  $v0, $v0, 180
+
+pos_x:  mtc1  $a0, $f0
+        mtc1  $a1, $f1
+        cvt.s.w $f0, $f0           # convert from ints to floats
+        cvt.s.w $f1, $f1
+
+        div.s   $f0, $f1, $f0      # float v = (float) y / (float) x;
+        mul.s   $f1, $f0, $f0      # v^^2
+        mul.s   $f2, $f1, $f0      # v^^3
+        l.s     $f3, three($0)     # load 3.0
+        div.s   $f3, $f2, $f3      # v^^3/3
+        sub.s   $f6, $f0, $f3      # v - v^^3/3
+        mul.s   $f4, $f1, $f2      # v^^5
+        l.s     $f5, five($0)      # load 5.0
+        div.s   $f5, $f4, $f5      # v^^5/5
+        add.s   $f6, $f6, $f5      # value = v - v^^3/3 + v^^5/5
+
+        l.s     $f8, PI($0)        # load PI
+        div.s   $f6, $f6, $f8      # value / PI
+        l.s     $f7, F180($0)      # load 180.0
+        mul.s   $f6, $f6, $f7      # 180.0 * value / PI
+
+        cvt.w.s $f6, $f6           # convert "delta" back to integer
+        mfc1    $a0, $f6
+        add     $v0, $v0, $a0      # angle += delta
+
+        jr    $ra
+
+
+#======================================================================
