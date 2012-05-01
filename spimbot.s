@@ -11,20 +11,14 @@
 #============================================================
 
 .data
-    num_puzzles:    .word 0
     ball_to_kick:   .word -1
     goal_x:         .word 0                      # default to the left goal
-
-    boards:         .space 648                   # the boards' storage space: 324 bytes per board; 324 = 4 * 9 * 9 = word size * # sudoku spaces on 1 board = memory for 1 board
-    boards_cur:     .word 0                      # the current board to solve (rotates between 0 and boards_max)
-    boards_pending: .word 0                      # the number of boards being generated
-    boards_max:     .word 2                      # the max number of boards
 
 .text
 main:
 
     # set our interrupts
-    li   $t4, 0x6001                             # enable suduko and kick
+    li   $t4, 0x2001                             # enable suduko and kick
     mtc0 $t4, $12
 
     # set up our stack variables
@@ -34,24 +28,13 @@ main:
     # figure out which goal we need to score on
     lw   $t0, 0xffff0020($0)                     # SPIMBOT_X
     li   $t3, 150
-    bgt  $t0, $t3, main_request_boards
+    bgt  $t0, $t3, main_goalsetup_end
 
     # we need to shoot for the right goal- default is to shoot to left (goal_x = 0)
     li   $t0, 300
     sw   $t0, goal_x
 
-main_request_boards:
-    # request initial boards
-    #  - note: only request more when one's been solved (completion based rather than checking every loop)
-    la   $t0, boards
-    li   $t1, 0
-    lw   $t2, boards_max
-    sw   $t2, boards_pending
-main_init_boards:
-    sw   $t0, 0xffff00e8($0)                     # SUDOKU_GET- writes 324 bytes to the address passed in
-    addi $t0, $t0, 324
-    addi $t1, $t1, 1
-    blt  $t1, $t2, main_init_boards
+main_goalsetup_end:
 
 main_while:
 
@@ -66,6 +49,17 @@ main_kickball:
     #           kick ball
     lw   $t2, ball_to_kick
     bltz $t2, main_kickball_end                  # if there are no balls to kick
+
+    # make spimbot's velocity 0
+    li   $t0, 0
+    sw   $t0, 0xffff0010($0)
+###########################################
+#    move $a0, $t2
+#    li   $v0, 1
+#    syscall
+#infiniteC:
+#    j infiniteC
+###########################################
 
     sw   $t2, 0xffff00d0($0)                     # BALL_SELECT
     lw   $t3, 0xffff00e0($0)                     # check if BALL_EXISTS
@@ -87,13 +81,17 @@ main_kickball:
     move $t0, $v0                                # angle from arctan
     sub  $t0, $t0, 180
     sw   $t0, 0xffff00c4($0)                     # set KICK_ORIENTATION
-    li   $t0, 1
-    li   $t1, 4
-    div  $t0, $t0, $t1
     lw   $t1, 0xffff00b8($0)                     # get our current ENERGY
-    mul  $t0, $t0, $t1                           # 25% of energy
+    li   $t0, 4
+    div  $t0, $t1, $t0
+############################################
+#    move $a0, $t0
+#    li   $v0, 1
+#    syscall
+#infiniteD:
+#    j infiniteD
+############################################
     sw   $t0, 0xffff00c8($0)                     # kick with 25% energy, KICK_ENERGY
-                                                 # TODO: check how much energy and kick with at most X percent
     li   $t0, -1
     sw   $t0, ball_to_kick
 main_kickball_end:
@@ -111,6 +109,9 @@ main_runto:
     li   $t6, 180000                             # initialize t6 to ridiculous distance
 
 main_runto_while:
+    lw   $t9, ball_to_kick
+    bge  $t9, 0, main_kickball                   # check if there's a ball to kick
+
     beq  $t1, 4, main_runto_move                 # found closest ball to run to
 
     sw   $t1, 0xffff00d0($0)                     # BALL_SELECT
@@ -123,9 +124,9 @@ main_runto_while:
     sub  $t4, $t2, $t4                           # delta x
     sub  $t5, $t3, $t5                           # delta y
     li   $t8, 0                                  # temporary distance
-    mul $t7, $t4, $t4
+    mul  $t7, $t4, $t4
     add  $t8, $t8, $t7
-    mul $t7, $t5, $t5
+    mul  $t7, $t5, $t5
     add  $t8, $t8, $t7                           # t8 has temporary distance
 
     bgt  $t8, $t6, main_runto_whileB             # check if t8 has lowest distance
@@ -137,6 +138,14 @@ main_runto_whileB:
     j    main_runto_while
 
 main_runto_move:
+    lw   $t9, ball_to_kick
+    bge  $t9, 0, main_kickball                   # check if there's a ball to kick
+
+    bne  $t6, 180000, main_runto_moveB           # any balls on the field?
+    li   $t0, 0                                  # set velocity to zero
+    sw   $t0, 0xffff0010($0)
+    j    main_runto                              # look for other balls
+main_runto_moveB:
     sw   $t0, 0xffff00d0($0)                     # SELECT_BALL
     lw   $t1, 0xffff00e0($0)                     # BALL_EXISTS
     beq  $t1, 0, main_runto_end                  # check if this ball exists
@@ -153,71 +162,21 @@ main_runto_move:
     move $t4, $v0                                # angle from arctan
     sub  $t4, $t4, 180
 
-    sw   $t4, 0xffff0014($0)                     # set ORIENTATION_VALUE to arctan angle
+    sw   $t4, 0xffff0014($0)                     # set ORIENTATION_VALUE to arctan
     li   $t4, 1
     sw   $t4, 0xffff0018($0)                     # set ORIENTATION_CONTROL to absolute
     li   $t4, 1
     sw   $t4, 0xffff0010($0)                     # run to ball via VELOCITY_VALUE
+    j main_while_end
 
 main_runto_end:
-
-main_sudoku:
-    # 3.) solve the sudoku puzzel
-    #
-    # if (boards_pending != boards_max) {        // we have boards to solve
-    #     Pick 1:
-    #         rule 1 until no changes happen
-    #         rule 2 until no changes happen
-    #         brute force
-    # }
-
-    lw   $t0, boards_max
-    lw   $t1, boards_pending
-    beq  $t0, $t1, main_sudoku_end               # no valid boards to solve, all pending
-main_sudoku_solve:
-    # TODO: handle rule2 and brute force
-    lw   $t0, boards_cur
-    mul  $t0, $s0, 324
-    la   $s0, boards
-    add  $s0, $s0, $t0                           # choose the current board
-    move $a0, $s0
-    jal  rule1
-    ori  $t0, $v0, 0                             # check for changes
-
-    bne  $t0, $0, main_sudoku_end                # if we made a successful pass with our rules, go back to main loop and wait for next cycle
-    # TODO: bruteforce here
-
-    sw   $s0, 0xffff00ec($0)                     # SUDOKU_DONE- solved board pointer
-    lw   $t0, boards_cur
-    addi $t0, $t0, 1
-    lw   $t1, boards_max
-    bne  $t0, $t1, main_sudoku_getnext
-    li   $t0, 0                                  # wrap around
-
-main_sudoku_getnext:                             # solved a board, request another
-    sw   $t0, boards_cur
-    sw   $s0, 0xffff00e8($0)                     # SUDOKU_GET- writes 324 bytes to the address passed in
-    lw   $t0, boards_pending                     # increment boards_pending
-    addi $t0, $t0, 1
-    sw   $t0, boards_pending
-
-main_sudoku_end:
+    li   $t0, 0
+    sw   $t0, 0xffff0010($0)
+    j    main_runto
 
 main_while_end:
     # 4.) jump to top of loop
     j main_while
-
-main_return:
-    # free stack space
-    li   $t0, 324
-    lw   $t3, boards_max
-    mul  $t0, $t0, $t3
-    add  $sp, $sp, $t0
-
-    lw   $ra, 0($sp)
-    addi $sp, $sp, 4
-
-    jr   $ra
 
 #============================================================
 # Interrupt Handler
@@ -250,9 +209,6 @@ interrupt_dispatch:
     and  $a0, $k0, 0x2000
     bne  $a0, 0, kick_interrupt
 
-    and  $a0, $k0, 0x4000
-    bne  $a0, 0, puzzle_interrupt
-
     li   $v0, 4
     la   $a0, unhandled_str
     syscall
@@ -274,24 +230,23 @@ kick_interrupt_loop:
 
 kick_interrupt_loop_done:
     sw   $a0, ball_to_kick                       # a0 has ball to kick
-
+#######################################
+#    li   $v0, 1
+#    syscall
+#infiniteA:
+#    j infiniteA
+#######################################
     sw   $a0, 0xffff0064($0)                     # acknowledge interrupt: can write any value
     j    interrupt_dispatch
 
-puzzle_interrupt:
-    # board is stored in passed in heap address
-    lw   $a0, boards_pending                     # decrement boards_pending
-    sub  $a0, $a0, 1
-    sw   $a0, boards_pending
-
-    sw   $a0, 0xffff0068($0)                     # acknowledge interrupt: can write any value
-    j    interrupt_dispatch
-
 non_intrpt:
-
     li   $v0, 4
     la   $a0, non_intrpt_str
     syscall
+######################################
+infiniteB:
+    j infiniteB
+######################################
     j    interrupt_done
 
 interrupt_done:
@@ -366,253 +321,3 @@ pos_x:  mtc1  $a0, $f0
         add     $v0, $v0, $a0      # angle += delta
 
         jr    $ra
-
-#################### SINGLETON ####################     
-is_singleton:
-    li    $v0, 0
-    beq    $a0, 0, is_singleton_done        # return 0 if value == 0
-    sub    $a1, $a0, 1
-    and    $a1, $a0, $a1
-    bne    $a1, 0, is_singleton_done        # return 0 if (value & (value - 1)) == 0
-    li    $v0, 1
-is_singleton_done:
-    jr    $ra
-
-#################### GET_SINGLETON ####################     
-get_singleton:
-    li    $v0, 0            # i
-    li    $t1, 1
-gs_loop:sll    $t2, $t1, $v0        # (1<<i)
-    beq    $t2, $a0, get_singleton_done
-    add    $v0, $v0, 1
-    blt    $v0, 9, gs_loop        # repeat if (i < 9)
-get_singleton_done:
-    jr    $ra
-
-## int get_square_begin(int index) {
-##   return (index/GRIDSIZE) * GRIDSIZE;
-## }
-
-get_square_begin:
-    div $v0, $a0, 3
-    mul $v0, $v0, 3
-    jr  $ra
-
-## bool
-## rule1(int board[9][9]) {
-##   bool changed = false;
-##   for (int i = 0 ; i < GRID_SQUARED ; ++ i) {
-##      for (int j = 0 ; j < GRID_SQUARED ; ++ j) {
-##         int value = board[i][j];
-##         if (singleton(value)) {
-##           for (int k = 0 ; k < GRID_SQUARED ; ++ k) {
-##              // eliminate from row
-##              if (k != j) {
-##                 if (board[i][k] & value) {
-##                   changed = true;
-##                 }
-##                 board[i][k] &= ~value;
-##              }
-##              // eliminate from column
-##              if (k != i) {
-##                 if (board[k][j] & value) {
-##                   changed = true;
-##                 }
-##                 board[k][j] &= ~value;
-##              }
-##           }
-## 
-##           // eliminate from square
-##           int ii = get_square_begin(i);
-##           int jj = get_square_begin(j);
-##           for (int k = ii ; k < ii + GRIDSIZE ; ++ k) {
-##                for (int l = jj ; l < jj + GRIDSIZE ; ++ l) {
-##                   if ((k == i) && (l == j)) {
-##                     continue;
-##                   }
-##                 if (board[k][l] & value) {
-##                   changed = true;
-##                 }
-##                   board[k][l] &= ~value;
-##                }
-##           }
-##         }
-##      }
-##   }
-##   return changed;
-## }
-
-board_address:
-    mul    $v0, $a1, 9        # i*9
-    add    $v0, $v0, $a2        # (i*9)+j
-    sll    $v0, $v0, 2        # ((i*9)+j)*4
-    add    $v0, $a0, $v0
-    jr    $ra
-
-rule1:
-    sub    $sp, $sp, 32         
-    sw    $ra, 0($sp)        # save $ra and free up 7 $s registers for
-    sw    $s0, 4($sp)        # i
-    sw    $s1, 8($sp)        # j
-    sw    $s2, 12($sp)        # board
-    sw    $s3, 16($sp)        # value
-    sw    $s4, 20($sp)        # k
-    sw    $s5, 24($sp)        # changed
-    sw    $s6, 28($sp)        # temp
-    move    $s2, $a0
-    li    $s5, 0            # changed = false
-
-    li    $s0, 0            # i = 0
-r1_loop1:
-    li    $s1, 0            # j = 0
-r1_loop2:
-    move    $a0, $s2        # board
-    move     $a1, $s0        # i
-    move    $a2, $s1        # j
-    jal    board_address
-    lw    $s3, 0($v0)        # value = board[i][j]
-    move    $a0, $s3        
-    jal    is_singleton
-    beq    $v0, 0, r1_loop2_bot    # if not a singleton, we can go onto the next iteration
-
-    li    $s4, 0            # k = 0
-r1_loop3:
-    beq    $s4, $s1, r1_skip_row    # skip if (k == j)
-    move    $a0, $s2        # board
-    move     $a1, $s0        # i
-    move    $a2, $s4        # k
-    jal    board_address
-    lw    $t0, 0($v0)        # board[i][k]
-    and    $t1, $t0, $s3        
-    beq    $t1, 0, r1_skip_row
-    not    $t1, $s3
-    and    $t1, $t0, $t1        
-    sw    $t1, 0($v0)        # board[i][k] = board[i][k] & ~value
-    li    $s5, 1            # changed = true
-    
-r1_skip_row:
-    beq    $s4, $s0, r1_skip_col    # skip if (k == i)
-    move    $a0, $s2        # board
-    move     $a1, $s4        # k
-    move    $a2, $s1        # j
-    jal    board_address
-    lw    $t0, 0($v0)        # board[k][j]
-    and    $t1, $t0, $s3        
-    beq    $t1, 0, r1_skip_col
-    not    $t1, $s3
-    and    $t1, $t0, $t1        
-    sw    $t1, 0($v0)        # board[k][j] = board[k][j] & ~value
-    li    $s5, 1            # changed = true
-
-r1_skip_col:    
-    add    $s4, $s4, 1        # k++
-    blt    $s4, 9, r1_loop3
-
-## doubly nested loop
-    move    $a0, $s0        # i
-    jal    get_square_begin
-    move    $s6, $v0        # ii
-    move    $a0, $s1        # j
-    jal    get_square_begin    # jj
-    move     $t0, $s6        # k = ii
-    add     $s6, $v0, 3        # jj + GRIDSIZE
-    add    $t1, $t0, 3        # ii + GRIDSIZE
-
-r1_loop4_outer:
-    sub    $t2, $s6, 3        # l = jj
-
-r1_loop4_inner:
-    bne    $t0, $s0, r1_loop4_1
-    beq    $t2, $s1, r1_loop4_bot
-
-r1_loop4_1:    
-    mul    $v0, $t0, 9        # k*9
-    add    $v0, $v0, $t2        # (k*9)+l
-    sll    $v0, $v0, 2        # ((k*9)+l)*4
-    add    $v0, $s2, $v0        # &board[k][l]
-    lw    $v1, 0($v0)        # board[k][l]
-       and    $t3, $v1, $s3        # board[k][l] & value
-    beq    $t3, 0, r1_loop4_bot
-
-    not    $t3, $s3
-    and    $v1, $v1, $t3        
-    sw    $v1, 0($v0)        # board[k][l] = board[k][l] & ~value
-    li    $s5, 1            # changed = true
-
-r1_loop4_bot:    
-    add    $t2, $t2, 1        # l++
-    blt    $t2, $s6, r1_loop4_inner
-
-    add    $t0, $t0, 1        # k++
-    blt    $t0, $t1, r1_loop4_outer
-    
-
-r1_loop2_bot:    
-    add    $s1, $s1, 1        # j++
-    blt    $s1, 9, r1_loop2
-
-    add    $s0, $s0, 1        # i++
-    blt    $s0, 9, r1_loop1
-
-    move    $v0, $s5        # return changed
-    lw    $ra, 0($sp)        # restore registers and return
-    lw    $s0, 4($sp)
-    lw    $s1, 8($sp)
-    lw    $s2, 12($sp)
-    lw    $s3, 16($sp)
-    lw    $s4, 20($sp)
-    lw    $s5, 24($sp)
-    lw    $s6, 28($sp)
-    add    $sp, $sp, 32
-    jr    $ra
-
-# bool
-# rule2(int board[GRID_SQUARED][GRID_SQUARED]) {
-#   bool changed = false;
-#   for (int i = 0 ; i < GRID_SQUARED ; ++ i) {
-#      for (int j = 0 ; j < GRID_SQUARED ; ++ j) {
-#         int value = board[i][j];
-#         if (is_singleton(value)) {
-#           continue;
-#         }
-#
-#         int j_sum = 0, i_sum = 0;
-#         for (int k = 0 ; k < GRID_SQUARED ; ++ k) {
-#           if (k != j) {
-#              j_sum |= board[i][k];           // summarize row
-#           }
-#           if (k != i) {
-#              i_sum |= board[k][j];       // summarize column
-#           }
-#         }
-#         if (ALL_VALUES != j_sum) {
-#           board[i][j] = ALL_VALUES & ~j_sum;
-#           changed = true;
-#           continue;
-#         } else if (ALL_VALUES != i_sum) {
-#           board[i][j] = ALL_VALUES & ~i_sum;
-#           changed = true;
-#           continue;
-#         }
-# 
-#         // elimnate from square
-#         int ii = get_square_begin(i);
-#         int jj = get_square_begin(j);
-#         int sum = 0;
-#         for (int k = ii ; k < ii + GRIDSIZE ; ++ k) {
-#           for (int l = jj ; l < jj + GRIDSIZE ; ++ l) {
-#              if ((k == i) && (l == j)) {
-#                 continue;
-#              }
-#              sum |= board[k][l];
-#           }
-#         }
-# 
-#         if (ALL_VALUES != sum) {
-#           board[i][j] = ALL_VALUES & ~sum;
-#           changed = true;
-#         } 
-#      }
-#   }
-#   return changed;
-# }
