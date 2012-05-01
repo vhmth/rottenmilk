@@ -90,9 +90,11 @@ main_kickball:
     li   $t1, 4
     div  $t0, $t0, $t1
     lw   $t1, 0xffff00b8($0)                     # get our current ENERGY
-    mul $t0, $t0, $t1                           # 25% of energy
+    mul  $t0, $t0, $t1                           # 25% of energy
     sw   $t0, 0xffff00c8($0)                     # kick with 25% energy, KICK_ENERGY
                                                  # TODO: check how much energy and kick with at most X percent
+    li   $t0, -1
+    sw   $t0, ball_to_kick
 main_kickball_end:
 
 main_runto:
@@ -153,7 +155,7 @@ main_runto_move:
     sw   $t4, 0xffff0014($0)                     # set ORIENTATION_VALUE to arctan angle
     li   $t4, 1
     sw   $t4, 0xffff0018($0)                     # set ORIENTATION_CONTROL to absolute
-    li   $t4, 10
+    li   $t4, 1
     sw   $t4, 0xffff0010($0)                     # run to ball via VELOCITY_VALUE
 
 main_runto_end:
@@ -222,7 +224,20 @@ interrupt_dispatch:
     j    interrupt_done
 
 kick_interrupt:
+    # figure out the ball that we've bumped into
+    li   $a0, -1
 
+kick_interrupt_loop:
+    add  $a0, $a0, 1                             # increment ball looper
+    sw   $a0, 0xffff00d0($0)                     # select ball
+    lw   $a1, 0xffff00e0($0)                     # check if ball exists
+    beq  $a1, 0, kick_interrupt_loop
+
+    lw   $a1, 0xffff00e4($0)                     # check if ball is kickable
+    beq  $a1, 0, kick_interrupt_loop
+
+kick_interrupt_loop_done:
+    sw   $a0, ball_to_kick                       # a0 has ball to kick
     j    interrupt_dispatch
 
 puzzle_interrupt:
