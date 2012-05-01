@@ -160,8 +160,50 @@ main_runto_move:
 
 main_runto_end:
 
+main_sudoku:
+    # 3.) solve the sudoku puzzel
+    #
+    # if (boards_pending != boards_max) {        // we have boards to solve
+    #     Pick 1:
+    #         rule 1 until no changes happen
+    #         rule 2 until no changes happen
+    #         brute force
+    # }
+
+    lw   $t0, boards_max
+    lw   $t1, boards_pending
+    beq  $t0, $t1, main_sudoku_end               # no valid boards to solve, all pending
+main_sudoku_solve:
+    # TODO: handle rule2 and brute force
+    lw   $t0, boards_cur
+    muli $t0, $s0, 324
+    la   $s0, boards
+    add  $s0, $s0, $t0                           # choose the current board
+    mv   $a0, $s0
+    jal  rule1
+    ori  $t0, $v0, 0                             # check for changes
+
+    bne  $t0, $0, main_sudoku_end                # if we made a successful pass with our rules, go back to main loop and wait for next cycle
+    # TODO: bruteforce here
+
+    sw   $s0, 0xffff00ec($0)                     # SUDOKU_DONE- solved board pointer
+    lw   $t0, boards_cur
+    addi $t0, $t0, 1
+    lw   $t1, boards_max
+    bne  $t0, $t1, main_sudoku_getnext
+    li   $t0, 0                                  # wrap around
+
+main_sudoku_getnext:                             # solved a board, request another
+    sw   $t0, boards_cur
+    sw   $s0, 0xffff00e8($0)                     # SUDOKU_GET- writes 324 bytes to the address passed in
+    lw   $t0, boards_pending                     # increment boards_pending
+    addi $t0, $t0, 1
+    sw   $t0, boards_pending
+
+main_sudoku_end:
+
 main_while_end:
-    # 3.) jump to top of loop
+    # 4.) jump to top of loop
     j main_while
 
 main_return:
@@ -242,7 +284,10 @@ kick_interrupt_loop_done:
 
 puzzle_interrupt:
     # board is stored in passed in stack address
-    # just acknowledge the interrupt
+    lw   $t0, boards_pending                     # decrement boards_pending
+    subi $t0, $t0, 1
+    sw   $t0, boards_pending
+
     j    interrupt_dispatch
 
 non_intrpt:
@@ -268,9 +313,6 @@ interrupt_done:
     rfe
     jr   $k0
     nop
-
-
-#======================================================================
 
 #### Code to compute angle ####
 
@@ -328,5 +370,243 @@ pos_x:  mtc1  $a0, $f0
 
         jr    $ra
 
+#################### SINGLETON ####################     
+is_singleton:
+    li    $v0, 0
+    beq    $a0, 0, is_singleton_done        # return 0 if value == 0
+    sub    $a1, $a0, 1
+    and    $a1, $a0, $a1
+    bne    $a1, 0, is_singleton_done        # return 0 if (value & (value - 1)) == 0
+    li    $v0, 1
+is_singleton_done:
+    jr    $ra
 
-#======================================================================
+#################### GET_SINGLETON ####################     
+get_singleton:
+    li    $v0, 0            # i
+    li    $t1, 1
+gs_loop:sll    $t2, $t1, $v0        # (1<<i)
+    beq    $t2, $a0, get_singleton_done
+    add    $v0, $v0, 1
+    blt    $v0, 9, gs_loop        # repeat if (i < 9)
+get_singleton_done:
+    jr    $ra
+
+## bool
+## rule1(int board[9][9]) {
+##   bool changed = false;
+##   for (int i = 0 ; i < GRID_SQUARED ; ++ i) {
+##      for (int j = 0 ; j < GRID_SQUARED ; ++ j) {
+##         int value = board[i][j];
+##         if (singleton(value)) {
+##           for (int k = 0 ; k < GRID_SQUARED ; ++ k) {
+##              // eliminate from row
+##              if (k != j) {
+##                 if (board[i][k] & value) {
+##                   changed = true;
+##                 }
+##                 board[i][k] &= ~value;
+##              }
+##              // eliminate from column
+##              if (k != i) {
+##                 if (board[k][j] & value) {
+##                   changed = true;
+##                 }
+##                 board[k][j] &= ~value;
+##              }
+##           }
+## 
+##           // eliminate from square
+##           int ii = get_square_begin(i);
+##           int jj = get_square_begin(j);
+##           for (int k = ii ; k < ii + GRIDSIZE ; ++ k) {
+##                for (int l = jj ; l < jj + GRIDSIZE ; ++ l) {
+##                   if ((k == i) && (l == j)) {
+##                     continue;
+##                   }
+##                 if (board[k][l] & value) {
+##                   changed = true;
+##                 }
+##                   board[k][l] &= ~value;
+##                }
+##           }
+##         }
+##      }
+##   }
+##   return changed;
+## }
+
+board_address:
+    mul    $v0, $a1, 9        # i*9
+    add    $v0, $v0, $a2        # (i*9)+j
+    sll    $v0, $v0, 2        # ((i*9)+j)*4
+    add    $v0, $a0, $v0
+    jr    $ra
+
+rule1:
+    sub    $sp, $sp, 32         
+    sw    $ra, 0($sp)        # save $ra and free up 7 $s registers for
+    sw    $s0, 4($sp)        # i
+    sw    $s1, 8($sp)        # j
+    sw    $s2, 12($sp)        # board
+    sw    $s3, 16($sp)        # value
+    sw    $s4, 20($sp)        # k
+    sw    $s5, 24($sp)        # changed
+    sw    $s6, 28($sp)        # temp
+    move    $s2, $a0
+    li    $s5, 0            # changed = false
+
+    li    $s0, 0            # i = 0
+r1_loop1:
+    li    $s1, 0            # j = 0
+r1_loop2:
+    move    $a0, $s2        # board
+    move     $a1, $s0        # i
+    move    $a2, $s1        # j
+    jal    board_address
+    lw    $s3, 0($v0)        # value = board[i][j]
+    move    $a0, $s3        
+    jal    is_singleton
+    beq    $v0, 0, r1_loop2_bot    # if not a singleton, we can go onto the next iteration
+
+    li    $s4, 0            # k = 0
+r1_loop3:
+    beq    $s4, $s1, r1_skip_row    # skip if (k == j)
+    move    $a0, $s2        # board
+    move     $a1, $s0        # i
+    move    $a2, $s4        # k
+    jal    board_address
+    lw    $t0, 0($v0)        # board[i][k]
+    and    $t1, $t0, $s3        
+    beq    $t1, 0, r1_skip_row
+    not    $t1, $s3
+    and    $t1, $t0, $t1        
+    sw    $t1, 0($v0)        # board[i][k] = board[i][k] & ~value
+    li    $s5, 1            # changed = true
+    
+r1_skip_row:
+    beq    $s4, $s0, r1_skip_col    # skip if (k == i)
+    move    $a0, $s2        # board
+    move     $a1, $s4        # k
+    move    $a2, $s1        # j
+    jal    board_address
+    lw    $t0, 0($v0)        # board[k][j]
+    and    $t1, $t0, $s3        
+    beq    $t1, 0, r1_skip_col
+    not    $t1, $s3
+    and    $t1, $t0, $t1        
+    sw    $t1, 0($v0)        # board[k][j] = board[k][j] & ~value
+    li    $s5, 1            # changed = true
+
+r1_skip_col:    
+    add    $s4, $s4, 1        # k++
+    blt    $s4, 9, r1_loop3
+
+## doubly nested loop
+    move    $a0, $s0        # i
+    jal    get_square_begin
+    move    $s6, $v0        # ii
+    move    $a0, $s1        # j
+    jal    get_square_begin    # jj
+    move     $t0, $s6        # k = ii
+    add     $s6, $v0, 3        # jj + GRIDSIZE
+    add    $t1, $t0, 3        # ii + GRIDSIZE
+
+r1_loop4_outer:
+    sub    $t2, $s6, 3        # l = jj
+
+r1_loop4_inner:
+    bne    $t0, $s0, r1_loop4_1
+    beq    $t2, $s1, r1_loop4_bot
+
+r1_loop4_1:    
+    mul    $v0, $t0, 9        # k*9
+    add    $v0, $v0, $t2        # (k*9)+l
+    sll    $v0, $v0, 2        # ((k*9)+l)*4
+    add    $v0, $s2, $v0        # &board[k][l]
+    lw    $v1, 0($v0)        # board[k][l]
+       and    $t3, $v1, $s3        # board[k][l] & value
+    beq    $t3, 0, r1_loop4_bot
+
+    not    $t3, $s3
+    and    $v1, $v1, $t3        
+    sw    $v1, 0($v0)        # board[k][l] = board[k][l] & ~value
+    li    $s5, 1            # changed = true
+
+r1_loop4_bot:    
+    add    $t2, $t2, 1        # l++
+    blt    $t2, $s6, r1_loop4_inner
+
+    add    $t0, $t0, 1        # k++
+    blt    $t0, $t1, r1_loop4_outer
+    
+
+r1_loop2_bot:    
+    add    $s1, $s1, 1        # j++
+    blt    $s1, 9, r1_loop2
+
+    add    $s0, $s0, 1        # i++
+    blt    $s0, 9, r1_loop1
+
+    move    $v0, $s5        # return changed
+    lw    $ra, 0($sp)        # restore registers and return
+    lw    $s0, 4($sp)
+    lw    $s1, 8($sp)
+    lw    $s2, 12($sp)
+    lw    $s3, 16($sp)
+    lw    $s4, 20($sp)
+    lw    $s5, 24($sp)
+    lw    $s6, 28($sp)
+    add    $sp, $sp, 32
+    jr    $ra
+
+# bool
+# rule2(int board[GRID_SQUARED][GRID_SQUARED]) {
+#   bool changed = false;
+#   for (int i = 0 ; i < GRID_SQUARED ; ++ i) {
+#      for (int j = 0 ; j < GRID_SQUARED ; ++ j) {
+#         int value = board[i][j];
+#         if (is_singleton(value)) {
+#           continue;
+#         }
+#
+#         int j_sum = 0, i_sum = 0;
+#         for (int k = 0 ; k < GRID_SQUARED ; ++ k) {
+#           if (k != j) {
+#              j_sum |= board[i][k];           // summarize row
+#           }
+#           if (k != i) {
+#              i_sum |= board[k][j];       // summarize column
+#           }
+#         }
+#         if (ALL_VALUES != j_sum) {
+#           board[i][j] = ALL_VALUES & ~j_sum;
+#           changed = true;
+#           continue;
+#         } else if (ALL_VALUES != i_sum) {
+#           board[i][j] = ALL_VALUES & ~i_sum;
+#           changed = true;
+#           continue;
+#         }
+# 
+#         // elimnate from square
+#         int ii = get_square_begin(i);
+#         int jj = get_square_begin(j);
+#         int sum = 0;
+#         for (int k = ii ; k < ii + GRIDSIZE ; ++ k) {
+#           for (int l = jj ; l < jj + GRIDSIZE ; ++ l) {
+#              if ((k == i) && (l == j)) {
+#                 continue;
+#              }
+#              sum |= board[k][l];
+#           }
+#         }
+# 
+#         if (ALL_VALUES != sum) {
+#           board[i][j] = ALL_VALUES & ~sum;
+#           changed = true;
+#         } 
+#      }
+#   }
+#   return changed;
+# }
