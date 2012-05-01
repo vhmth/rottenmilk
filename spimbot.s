@@ -274,17 +274,17 @@ kick_interrupt_loop:
 
 kick_interrupt_loop_done:
     sw   $a0, ball_to_kick                       # a0 has ball to kick
-    
-    sw   $t0, 0xffff0064($0)                     # acknowledge interrupt: can write any value
+
+    sw   $a0, 0xffff0064($0)                     # acknowledge interrupt: can write any value
     j    interrupt_dispatch
 
 puzzle_interrupt:
     # board is stored in passed in heap address
-    lw   $t0, boards_pending                     # decrement boards_pending
-    sub  $t0, $t0, 1
-    sw   $t0, boards_pending
+    lw   $a0, boards_pending                     # decrement boards_pending
+    sub  $a0, $a0, 1
+    sw   $a0, boards_pending
 
-    sw   $t0, 0xffff0068($0)                     # acknowledge interrupt: can write any value
+    sw   $a0, 0xffff0068($0)                     # acknowledge interrupt: can write any value
     j    interrupt_dispatch
 
 non_intrpt:
