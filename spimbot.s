@@ -140,12 +140,23 @@ main_runto_end:
     lw   $t1, 0xffff00e0($0)                     # BALL_EXISTS
     beq  $t1, 0, main_while_end                  # check if this ball exists
 
-    # t3 has BALL_X
-    # t4 has BALL_Y
-    # t3 has delta x
-    # t4 has delta y
-    # call arctan
-    # run to ball
+                                                 #TODO: check if the ball is moving
+    lw   $t4, 0xffff00d4($0)                     # t4 has BALL_X
+    lw   $t5, 0xffff00d8($0)                     # t5 has BALL_Y
+    sub  $t4, $t2, $t4                           # t4 has delta x
+    sub  $t5, $t3, $t4                           # t5 has delta y
+    move $a0, $t4
+    move $a1, $t5
+
+    jal arctan                                   # call arctan
+    move $t4, $v0                                # angle from arctan
+    sub  $t4, $t4, 180
+
+    sw   $t4, 0xffff0014($0)                     # set ORIENTATION_VALUE to arctan angle
+    li   $t4, 1
+    sw   $t4, 0xffff0018($0)                     # set ORIENTATION_CONTROL to absolute
+    li   $t4, 10
+    sw   $t4, 0xffff0010($0)                     # run to ball via VELOCITY_VALUE
 
 main_while_end:
 
