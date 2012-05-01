@@ -15,19 +15,10 @@
     ball_to_kick:   .word -1
     goal_x:         .word 0                      # default to the left goal
 
-    boards:         .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
-
-    boards_num:     .word 0
-    boards_cur:     .word 0
-    boards_max:     .word 3
+    boards:         .space 648                   # the boards' storage space: 324 bytes per board; 324 = 4 * 9 * 9 = word size * # sudoku spaces on 1 board = memory for 1 board
+    boards_cur:     .word 0                      # the current board to solve (rotates between 0 and boards_max)
+    boards_pending: .word 0                      # the number of boards being generated
+    boards_max:     .word 2                      # the max number of boards
 
 .text
 main:
@@ -38,30 +29,33 @@ main:
 
     # set up our stack variables
     sub  $sp, $sp, 4
-    sw   $s0, 0($sp)
+    sw   $ra, 0($sp)
 
     # figure out which goal we need to score on
     lw   $t0, 0xffff0020($0)                     # SPIMBOT_X
     li   $t3, 150
     bgt  $t0, $t3, main_while
 
-    # we shoot for the right goal
+    # we need to shoot for the right goal- default is to shoot to left (goal_x = 0)
     li   $t0, 300
     sw   $t0, goal_x
 
+    # request initial boards
+    #  - note: only request more when one's been solved (completion based rather than checking every loop)
+    la   $t0, boards
+    li   $t1, 0
+    lw   $t2, boards_max
+    sw   $t2, boards_pending
+main_init_boards:
+    sw   $t0, 0xffff00e8($0)                     # SUDOKU_GET- writes 324 bytes to the address passed in
+    addi $t0, $t0, 324
+    addi $t1, $t1, 1
+    blt  $t1, $t2, main_init_boards
+
 main_while:
 
-    # 1.) check if num_puzzles is zero
-    #
-    #     if (yes):
-    #       request X suduko puzzles
-    lw   $t0, num_puzzles
-    bgtz $t0, main_kickball
-    # TODO: request X suduko puzzles
-
 main_kickball:
-
-    # 2.) check if ball_to_kick is greater than equal to zero
+    # 1.) check if ball_to_kick is greater than equal to zero
     #
     #     if (yes):
     #       check if ball exists
@@ -70,14 +64,14 @@ main_kickball:
     #       if (yes):
     #           kick ball
     lw   $t2, ball_to_kick
-    bltz $t2, main_runto                         # if there are no balls to kick
+    bltz $t2, main_kickball_end                  # if there are no balls to kick
 
     sw   $t2, 0xffff00d0($0)                     # BALL_SELECT
     lw   $t3, 0xffff00e0($0)                     # check if BALL_EXISTS
-    beq  $t3, 0, main_runto
+    beq  $t3, 0, main_kickball_end
 
     lw   $t3, 0xffff00e4($0)                     # check if BALL_IS_KICKABLE
-    beq  $t3, 0, main_runto
+    beq  $t3, 0, main_kickball_end
 
     lw   $t0, 0xffff00d4($0)                     # get angle of ball to goal, BALL_X
     lw   $t1, 0xffff00d8($0)                     # BALL_Y
@@ -99,10 +93,10 @@ main_kickball:
     mult $t0, $t0, $t1                           # 25% of energy
     sw   $t0, 0xffff00c8($0)                     # kick with 25% energy, KICK_ENERGY
                                                  # TODO: check how much energy and kick with at most X percent
+main_kickball_end:
 
 main_runto:
-
-    # 3.) check closest ball that exists on field
+    # 2.) check closest ball that exists on field
     #
     #     calculate arc tan to ball
     #     run towards ball
@@ -114,7 +108,7 @@ main_runto:
     li   $t6, 180000                             # initialize t6 to ridiculous distance
 
 main_runto_while:
-    beq  $t1, 4, main_runto_end                  # found closest ball to run to
+    beq  $t1, 4, main_runto_move                 # found closest ball to run to
 
     sw   $t1, 0xffff00d0($0)                     # BALL_SELECT
     lw   $t7, 0xffff00e0($0)                     # see if BALL_EXISTS on field
@@ -139,10 +133,10 @@ main_runto_whileB:
     add  $t1, $t1, 1                             # increment ball looper
     j    main_runto_while
 
-main_runto_end:
+main_runto_move:
     sw   $t0, 0xffff00d0($0)                     # SELECT_BALL
     lw   $t1, 0xffff00e0($0)                     # BALL_EXISTS
-    beq  $t1, 0, main_while_end                  # check if this ball exists
+    beq  $t1, 0, main_runto_end                  # check if this ball exists
 
                                                  #TODO: check if the ball is moving
     lw   $t4, 0xffff00d4($0)                     # t4 has BALL_X
@@ -162,12 +156,22 @@ main_runto_end:
     li   $t4, 10
     sw   $t4, 0xffff0010($0)                     # run to ball via VELOCITY_VALUE
 
-main_while_end:
+main_runto_end:
 
-    # 4.) jump to top of loop
+main_while_end:
+    # 3.) jump to top of loop
     j main_while
 
 main_return:
+    # free stack space
+    li   $t0, 324
+    lw   $t3, boards_max
+    mul  $t0, $t0, $t3
+    add  $sp, $sp, $t0
+
+    lw   $ra, 0($sp)
+    addi $sp, $sp, 4
+
     jr   $ra
 
 
@@ -222,7 +226,8 @@ kick_interrupt:
     j    interrupt_dispatch
 
 puzzle_interrupt:
-
+    # board is stored in passed in stack address
+    # just acknowledge the interrupt
     j    interrupt_dispatch
 
 non_intrpt:
