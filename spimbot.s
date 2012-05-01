@@ -60,6 +60,7 @@ main_while:
     # TODO: request X suduko puzzles
 
 main_kickball:
+
     # 2.) check if ball_to_kick is greater than equal to zero
     #
     #     if (yes):
@@ -87,22 +88,67 @@ main_kickball:
     move $a0, $t0
     move $a1, $t1
 
-    move $s0, $ra
     jal  arctan
-    move $ra, $s0
     move $t0, $v0                                # angle from arctan
     sub  $t0, $t0, 180
     sw   $t0, 0xffff00c4($0)                     # set KICK_ORIENTATION
     li   $t0, 50
     sw   $t0, 0xffff00c8($0)                     # kick with 50 energy, KICK_ENERGY
+                                                 # TODO: check how much energy and kick with at most 50
 
 main_runto:
+
     # 3.) check closest ball that exists on field
     #
     #     calculate arc tan to ball
     #     run towards ball
+    li   $t0, 0                                  # t0 has closest ball
+    li   $t1, 0                                  # t1 is the ball looper
+    lw   $t2, 0xffff0020($0)                     # t2 has SPIMBOT_X_LOCATION
+    lw   $t3, 0xffff0024($0)                     # t3 has SPIMBOT_Y_LOCATION
+                                                 # t6 has closest distance
+    li   $t6, 180000                             # initialize t6 to ridiculous distance
+
+main_runto_while:
+    beq  $t1, 4, main_runto_end                  # found closest ball to run to
+
+    sw   $t1, 0xffff00d0($0)                     # BALL_SELECT
+    lw   $t7, 0xffff00e0($0)                     # see if BALL_EXISTS on field
+    beq  $t7, 0, main_runto_whileB
+
+    lw   $t4, 0xffff00d4($0)                     # t4 has BALL_X
+    lw   $t5, 0xffff00d8($0)                     # t5 has BALL_Y
+
+    sub  $t4, $t2, $t4                           # delta x
+    sub  $t5, $t3, $t5                           # delta y
+    li   $t8, 0                                  # temporary distance
+    mult $t7, $t4, $t4
+    add  $t8, $t8, $t7
+    mult $t7, $t5, $t5
+    add  $t8, $t8, $t7                           # t8 has temporary distance
+
+    bgt  $t8, $t6, main_runto_whileB             # check if t8 has lowest distance
+    move $t6, $t8                                # update closest distance
+    move $t0, $t1                                # update closest ball
+
+main_runto_whileB:
+    add  $t1, $t1, 1                             # increment ball looper
+    j    main_runto_while
+
+main_runto_end:
+    sw   $t0, 0xffff00d0($0)                     # SELECT_BALL
+    lw   $t1, 0xffff00e0($0)                     # BALL_EXISTS
+    beq  $t1, 0, main_while_end                  # check if this ball exists
+
+    # t3 has BALL_X
+    # t4 has BALL_Y
+    # t3 has delta x
+    # t4 has delta y
+    # call arctan
+    # run to ball
 
 main_while_end:
+
     # 4.) jump to top of loop
     j main_while
 
