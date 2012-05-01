@@ -13,12 +13,26 @@
 .data
     num_puzzles:    .word 0
     ball_to_kick:   .word -1
-    goal_x          .word 0           # default to the left goal
+    goal_x          .word 0                      # default to the left goal
+
+    boards:         .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+                    .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
+
+    boards_num:     .word 0
+    boards_cur:     .word 0
+    boards_max:     .word 3
 
 main:
 
     # set our interrupts
-    li   $t4, 0x6001                  # enable suduko and kick
+    li   $t4, 0x6001                             # enable suduko and kick
     mtc0 $t4, $12
 
     # set up our stack variables
@@ -26,25 +40,26 @@ main:
     sw   $s0, 0($sp)
 
     # figure out which goal we need to score on
-    sw   $t0, 0xffff0020($0)
+    lw   $t0, 0xffff0020($0)                     # SPIMBOT_X
     li   $t3, 150
     bgt  $t0, $t3, main_while
 
     # we shoot for the right goal
     li   $t0, 300
-    lw   $t0, goal_x
+    sw   $t0, goal_x
 
 main_while:
+
     # 1.) check if num_puzzles is zero
     #
     #     if (yes):
     #       request X suduko puzzles
-    sw   $t0, num_puzzles
-    bgtz $t0, kickball_main
+    lw   $t0, num_puzzles
+    bgtz $t0, main_kickball
+    sw   boards, 0(0xffff00e8)                   # SUDOKU_GET
+    # TODO: request X suduko puzzles
 
-    # request X suduko puzzles
-
-kickball_main:
+main_kickball:
     # 2.) check if ball_to_kick is greater than equal to zero
     #
     #     if (yes):
@@ -53,44 +68,46 @@ kickball_main:
     #       check if ball is kickable
     #       if (yes):
     #           kick ball
-    sw   $t2, ball_to_kick
-    bltz $t2, runto_main              # if there are no balls to kick
+    lw   $t2, ball_to_kick
+    bltz $t2, main_runto                         # if there are no balls to kick
 
-    sw   $t2, 0xffff00d0($0)          # select ball
-    lw   $t3, 0xffff00e0($0)          # check if ball exists
-    beq  $t3, 0, runto_main
+    sw   $t2, 0xffff00d0($0)                     # BALL_SELECT
+    lw   $t3, 0xffff00e0($0)                     # check if BALL_EXISTS
+    beq  $t3, 0, main_runto
 
-    lw   $t3, 0xffff00e4($0)          # check if ball is kickable
-    beq  $t3, 0, runto_main
+    lw   $t3, 0xffff00e4($0)                     # check if BALL_IS_KICKABLE
+    beq  $t3, 0, main_runto
 
-    lw   $t0, 0xffff00d4($0)          # get angle of ball to goal
-    lw   $t1, 0xffff00d8($0)
-    sw   $t2, goal_x
-    li   $t3, 150
-    sub  $t0, $t0, $t2                # delta x
-    sub  $t1, $t1, $t3                # delta y
+    lw   $t0, 0xffff00d4($0)                     # get angle of ball to goal, BALL_X
+    lw   $t1, 0xffff00d8($0)                     # BALL_Y
+    lw   $t2, goal_x
+    li   $t3, 150                                # TODO: variable aim for goal's Y pos
+    sub  $t0, $t0, $t2                           # delta x
+    sub  $t1, $t1, $t3                           # delta y
     move $a0, $t0
     move $a1, $t1
 
     move $s0, $ra
     jal  arctan
     move $ra, $s0
-    move $t0, $v0                     # angle from arctan
+    move $t0, $v0                                # angle from arctan
     sub  $t0, $t0, 180
-    sw   $t0, 0xffff00c4($0)          # set kick orientation
+    sw   $t0, 0xffff00c4($0)                     # set KICK_ORIENTATION
     li   $t0, 50
-    sw   $t0, 0xffff00c8($0)          # kick with 50 energy
+    sw   $t0, 0xffff00c8($0)                     # kick with 50 energy, KICK_ENERGY
 
-runto_main:
+main_runto:
     # 3.) check closest ball that exists on field
     #
     #     calculate arc tan to ball
     #     run towards ball
 
-end_while:
+main_while_end:
     # 4.) jump to top of loop
     j main_while
 
+main_return:
+    jr   $ra
 
 
 
