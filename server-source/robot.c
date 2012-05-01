@@ -72,7 +72,7 @@ Widget map = NULL;
 GC robot_gc[2];
 
 // for scaling the map window
-float drawing_scaling = 1.0;
+double drawing_scaling = 1.0;
 #define SCALE(X) ((int)(drawing_scaling * (X)))
 
 // to allow user to interrupt (fixme: does this still do anything?)
@@ -126,7 +126,7 @@ bot_initialize(int context, int randomize) {
   bot->bonk = 0;
   bot->x = randomize ? RANDOM_LOC : 50 ;
   bot->y = randomize ? RANDOM_LOC : 50 ;
-  bot->orientation = randomize ? (M_PI * (random() & 0xff) / (float)0x7f) : 0;
+  bot->orientation = randomize ? (M_PI * (random() & 0xff) / (double)0x7f) : 0;
   bot->velocity = 5;
   bot->last_x = 0;
   bot->last_y = 0;
@@ -175,7 +175,7 @@ bot_motion_update(bot_state_t *bot) {
   double delta_x = cos(bot->orientation) * velocity;
   double delta_y = sin(bot->orientation) * velocity;
 
-  float prev_x = bot->x, prev_y = bot->y;
+  double prev_x = bot->x, prev_y = bot->y;
   bot->x += delta_x;
   bot->y += delta_y;
 
@@ -502,6 +502,18 @@ read_spimbot_IO(int context, mem_addr addr) {
 		(((bot->context == 1) && reverse_image) ? (WORLD_SIZE - bot->y) : bot->y);
 	 return y;
  	 // return (mem_word)(bot->y);
+  }
+  case SPIMBOT_OTHER_X_ADDR: {
+	 mem_word x = (mem_word)
+		(((bot->context == 1) && reverse_image) ? (WORLD_SIZE - robots[1 - bot->context].x) : robots[1 - bot->context].x);
+	 return x;
+	 //return (mem_word)(robots[1 - bot->context].x);
+  }
+  case SPIMBOT_OTHER_Y_ADDR: {
+	 mem_word y = (mem_word)
+		(((bot->context == 1) && reverse_image) ? (WORLD_SIZE - robots[1 - bot->context].y) : robots[1 - bot->context].y);
+	 return y;
+	 // return (mem_word)(bot->y);
   }
   case SPIMBOT_VEL_ADDR:
          return mem_word(int(bot->velocity));

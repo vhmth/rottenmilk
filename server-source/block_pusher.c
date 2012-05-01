@@ -56,10 +56,10 @@ typedef struct board_s {
 
 typedef struct struct_ball_t {
    int num;
-	float x, y;
-	float drawn_x, drawn_y;
-	float velocity;
-	float orientation;
+	double x, y;
+	double drawn_x, drawn_y;
+	double velocity;
+	double orientation;
 	bool visible;
 	int disappeared_cycle;
 	int kick_cycle[2];
@@ -73,7 +73,7 @@ typedef struct {
 	int query_ball;
    int last_clue_time;
    int next_clue_interrupt_time;
-	float kick_orientation;
+	double kick_orientation;
 	int kick_ball_number;
 	int kick_energy;
 
@@ -124,11 +124,11 @@ typedef struct {
 
 #include <strings.h>
 
-float my_fmin(float a, float b) {
+double my_min(double a, double b) {
   return (a<b) ? a : b;
 }
 
-float my_fmax(float a, float b) {
+double my_max(double a, double b) {
   return (a>b) ? a : b;
 }
 
@@ -147,8 +147,8 @@ const int BALL_RADIUS = 12;
 const int BALL_MASS = 64;
 
 // physics constants
-const float AIR_RESISTANCE = 1; // .999999;
-// const float DISTANCE_POWERUP = .01;
+const double AIR_RESISTANCE = 1; // .999999;
+// const double DISTANCE_POWERUP = .01;
 
 // scenario cycle level
 unsigned CYCLE_LEVEL = 0x0;
@@ -186,17 +186,17 @@ extern bool g_randommap;
 extern bool g_random_map;
 
 void
-ball_initialize(int count) {
-	for (int i = count ; i < NUM_BALLS ; ++ i) {
+ball_initialize() {
+	for (int i = 0 ; i < TOTAL_BALLS ; ++ i) {
 	  balls[i].num = i;
 	  balls[i].drawn_x = balls[i].x = (g_randommap || g_random_map) ? RANDOM_BALL_LOC : ball_init_x[i];
 	  balls[i].drawn_y = balls[i].y = (g_randommap || g_random_map) ? RANDOM_BALL_LOC : ball_init_y[i];
 	}
 
-	for (int i = count ; i < NUM_BALLS ; ++i){
+	for (int i = 0 ; i < TOTAL_BALLS ; ++ i) {
 	  balls[i].velocity = 0;
 	  balls[i].orientation = 0;
-	  balls[i].visible = true;
+	  balls[i].visible = (i < NUM_BALLS);
 	  balls[i].disappeared_cycle = 0;
 	  for (int j = 0 ; j < 2 ; j ++) {
 		 balls[i].kick_cycle[j] = 0;
@@ -295,7 +295,7 @@ world_initialize() {
   bot_initialize(1, /* random */ 0);
   bot_scenario_init(&robots[1]);
 
-  ball_initialize(0);
+  ball_initialize();
   //bot_compute_next_block_interrupt_time(&robots[0]);
   //bot_compute_next_block_interrupt_time(&robots[1]);
 }
@@ -305,20 +305,20 @@ world_initialize() {
 *************************************************/
 
 void
-kick_ball(ball_t *ball, int energy, float orientation, int context) {
+kick_ball(ball_t *ball, int energy, double orientation, int context) {
   if (spimbot_debug) {
 	 printf("bot %d kick %d ball %d cycle: %d\n", context, energy, ball->num, cycle);
   }
 	bot_state_t *bot = &robots[context];
 	int bot_x = ((bot->context == 1) ? (WORLD_SIZE - bot->x) : bot->x);
-	float v_x = ball->velocity * cos(ball->orientation);
-	float v_y = ball->velocity * sin(ball->orientation);
-	float v2 = (1.0 * energy / BALL_MASS) * (150 + bot_x) / 300.0;
+	double v_x = ball->velocity * cos(ball->orientation);
+	double v_y = ball->velocity * sin(ball->orientation);
+	double v2 = (1.0 * energy / BALL_MASS) * (150 + bot_x) / 300.0;
 	if (bot->context == 1) {
 		v2 *= -1;
 	}
-	float v2_x = v2 * cos(orientation);
-	float v2_y = v2 * sin(orientation);
+	double v2_x = v2 * cos(orientation);
+	double v2_y = v2 * sin(orientation);
 	v_x += v2_x;
 	v_y += v2_y;
 	ball->velocity = sqrt(v_x * v_x + v_y * v_y);
@@ -338,16 +338,16 @@ void ball_velocity_update() {
 *************************************************/
 
 
-const float epsilon = .02;
+const double epsilon = .02;
 
 bool
 bot_collide_ball(bot_state_t *bot, ball_t *ball) {
 	if (ball->visible) {
-		float diff_x = bot->x - ball->x;
-		float diff_y = bot->y - ball->y;
-		float distSquared = diff_x * diff_x + diff_y * diff_y;
-		// float radius_minus = BOT_RADIUS + BALL_RADIUS - epsilon;
-		float radius_plus = BOT_RADIUS + BALL_RADIUS + epsilon;
+		double diff_x = bot->x - ball->x;
+		double diff_y = bot->y - ball->y;
+		double distSquared = diff_x * diff_x + diff_y * diff_y;
+		// double radius_minus = BOT_RADIUS + BALL_RADIUS - epsilon;
+		double radius_plus = BOT_RADIUS + BALL_RADIUS + epsilon;
 		// if (radius_minus * radius_minus < distSquared &&
 		if (distSquared < radius_plus * radius_plus) {
 			if (ball->no_kick_cycle[bot->context] == 0) {
@@ -360,7 +360,7 @@ bot_collide_ball(bot_state_t *bot, ball_t *ball) {
 }
 
 void goal_box_energy_update(bot_state_t *bot) {
-	float x = ((bot->context == 1) ? (WORLD_SIZE - bot->x) : bot->x);
+	double x = ((bot->context == 1) ? (WORLD_SIZE - bot->x) : bot->x);
 	if (x < GOAL_BOX_WIDTH && bot->y > (WORLD_SIZE - GOAL_BOX_HEIGHT) / 2 &&
 		bot->y < (WORLD_SIZE + GOAL_BOX_HEIGHT) / 2)
 	{
@@ -517,22 +517,22 @@ void scenario_setting_update() {
 		printf("Phase 2: %d\n", cycle);
 	 }
 	 CYCLE_LEVEL |= 0xf;
+	 balls[NUM_BALLS].visible = true;
 	 NUM_BALLS += 1;
-	 ball_initialize(1);
   } else if (cycle > (CYCLE_END / 2) && !(CYCLE_LEVEL & 0xf0)) {
 	 if (!SPIMBOT_TOURNAMENT) {
 		printf("Phase 3: %d\n", cycle);
 	 }
 	 CYCLE_LEVEL |= 0xf0;
+	 balls[NUM_BALLS].visible = true;
 	 NUM_BALLS += 1;
-	 ball_initialize(2);
   } else if (cycle > (3 * CYCLE_END / 4) && !(CYCLE_LEVEL & 0xf00)) {
 	 if (!SPIMBOT_TOURNAMENT) {
 		printf("Phase 4: %d\n", cycle);
 	 }
 	 CYCLE_LEVEL |= 0xf00;
+	 balls[NUM_BALLS].visible = true;
 	 NUM_BALLS += 1;
-	 ball_initialize(3);
   }
 }
 
@@ -684,11 +684,7 @@ scenario_write_spimbot_IO(int context, mem_addr addr, mem_word value) {
 
     case SPIMBOT_QUERY_BALL:
 	// If (signed)value is bogus, do nothing
-	if( (value < 0) && (value < NUM_BALLS) ) {
-	    if( bot->context == 1 )
-	    {
-		value = NUM_BALLS - 1 - value;
-	    }
+	if( (0 <= value) && (value < TOTAL_BALLS) ) {
 	    bot->scenario.query_ball = value;
 	    bot->scenario.kick_ball_number = value;
 	} // else ignore the input
@@ -793,7 +789,7 @@ scenario_read_spimbot_IO(int context, mem_addr addr, int *success) {
 // 			}
 // 			return v;
 // 		case SPIMBOT_BALL_ORIENTATION:
-// 			float o;
+// 			double o;
 // 			if (bot->scenario.query_ball >= NUM_BALLS || bot->scenario.query_ball < 0) {
 // 				o = (mem_word)bot->orientation;
 // 			} else {

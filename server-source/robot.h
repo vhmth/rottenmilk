@@ -60,10 +60,10 @@ typedef struct {
   char name[80];
   unsigned color;
 
-  float x, y;
-  float orientation, velocity;
+  double x, y;
+  double orientation, velocity;
   int last_x, last_y;
-  float last_orientation;
+  double last_orientation;
   int done;
   int bonk;
   int turn_value;

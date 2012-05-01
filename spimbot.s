@@ -13,7 +13,7 @@
 .data
     num_puzzles:    .word 0
     ball_to_kick:   .word -1
-    goal_x          .word 0                      # default to the left goal
+    goal_x:         .word 0                      # default to the left goal
 
     boards:         .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
                     .word 0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0    0 0 0 0 0 0 0 0 0
@@ -29,6 +29,7 @@
     boards_cur:     .word 0
     boards_max:     .word 3
 
+.text
 main:
 
     # set our interrupts
@@ -56,7 +57,6 @@ main_while:
     #       request X suduko puzzles
     lw   $t0, num_puzzles
     bgtz $t0, main_kickball
-    sw   boards, 0(0xffff00e8)                   # SUDOKU_GET
     # TODO: request X suduko puzzles
 
 main_kickball:
