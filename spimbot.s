@@ -244,7 +244,6 @@ interrupt_handler:
     bne  $a0, 0  , non_intrpt
 
 interrupt_dispatch:
-
     mfc0 $k0, $13
     beq  $k0, $zero, interrupt_done
 
@@ -265,7 +264,7 @@ kick_interrupt:
     li   $a0, -1
 
 kick_interrupt_loop:
-    #add  $a0, $a0, 1                             # increment ball looper
+    add  $a0, $a0, 1                             # increment ball looper
     sw   $a0, 0xffff00d0($0)                     # select ball
     lw   $a1, 0xffff00e0($0)                     # check if ball exists
     beq  $a1, 0, kick_interrupt_loop
