@@ -92,9 +92,13 @@ main_kickball:
     move $t0, $v0                                # angle from arctan
     sub  $t0, $t0, 180
     sw   $t0, 0xffff00c4($0)                     # set KICK_ORIENTATION
-    li   $t0, 50
-    sw   $t0, 0xffff00c8($0)                     # kick with 50 energy, KICK_ENERGY
-                                                 # TODO: check how much energy and kick with at most 50
+    li   $t0, 1
+    li   $t1, 4
+    div.d $t0, $t0, $t1
+    lw   $t1, 0xffff00b8($0)                     # get our current ENERGY
+    mult $t0, $t0, $t1                           # 25% of energy
+    sw   $t0, 0xffff00c8($0)                     # kick with 25% energy, KICK_ENERGY
+                                                 # TODO: check how much energy and kick with at most X percent
 
 main_runto:
 
