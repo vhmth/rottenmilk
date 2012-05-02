@@ -76,11 +76,11 @@ main_kickball:
     bltz $t2, main_kickball_end                  # if there are no balls to kick
 
 ###################
-    la   $a0, kick
-    li   $v0, 4
+#    la   $a0, kick
+#    li   $v0, 4
     #syscall
-    la   $a0, newline
-    li   $v0, 4
+#    la   $a0, newline
+#    li   $v0, 4
     #syscall
 ###################
 
@@ -173,11 +173,11 @@ main_runto_move:
     bge  $t9, 0, main_runto_end                  # check if there's a ball to kick
 
 ###################
-    la   $a0, runto
-    li   $v0, 4
+#    la   $a0, runto
+#    li   $v0, 4
     #syscall
-    la   $a0, newline
-    li   $v0, 4
+#    la   $a0, newline
+#    li   $v0, 4
     #syscall
 ###################
 
@@ -242,11 +242,11 @@ main_sudoku:
     beq  $t0, $t1, main_sudoku_end               # no valid boards to solve, all pending
 
 ###################
-    la   $a0, sudoku
-    li   $v0, 4
+#    la   $a0, sudoku
+#    li   $v0, 4
     #syscall
-    la   $a0, newline
-    li   $v0, 4
+#    la   $a0, newline
+#    li   $v0, 4
     #syscall
 ###################
 
@@ -261,25 +261,25 @@ main_sudoku_solve:
     # test: print board
     #jal print_board
     #move $a0, $s0
-    move $a0, $s0
-    li   $v0, 1
-    syscall
-    la   $a0, newline
-    li   $v0, 4
-    syscall
-    move $a0, $s0
+#    move $a0, $s0
+#    li   $v0, 1
+#    syscall
+#    la   $a0, newline
+#    li   $v0, 4
+#    syscall
+#    move $a0, $s0
 
     jal  rule1                              # limit on jumps, jump to a halfway point first
 
     # test: print rule1 result
-    move $s4, $v0
-    move $a0, $v0
-    li   $v0, 1
-    syscall
-    la   $a0, newline
-    li   $v0, 4
-    syscall
-    move $v0, $s4
+#    move $s4, $v0
+#    move $a0, $v0
+#    li   $v0, 1
+#    syscall
+#    la   $a0, newline
+#    li   $v0, 4
+#    syscall
+#    move $v0, $s4
 
     bne  $v0, 0, main_sudoku_end                # if we made a successful pass with our rules, go back to main loop and wait for next cycle
 
@@ -294,12 +294,12 @@ main_sudoku_solve:
 
 main_sudoku_getnext:                             # solved a board, request another
 ###################
-    la   $a0, sudoku
-    li   $v0, 4
-    syscall
-    la   $a0, newline
-    li   $v0, 4
-    syscall
+#    la   $a0, sudoku
+#    li   $v0, 4
+#    syscall
+#    la   $a0, newline
+#    li   $v0, 4
+#    syscall
 ###################
 
     sw   $t0, boards_cur
@@ -385,14 +385,14 @@ r1_loop2:
     move    $a2, $s1        # j
     jal    board_address
     
-    move $a0, $s2
-    move $t0, $v0
-    li   $v0, 1
-    syscall
-    la   $a0, newline
-    li   $v0, 4
-    syscall
-    move $v0, $t0
+#    move $a0, $s2
+#    move $t0, $v0
+#    li   $v0, 1
+#    syscall
+#    la   $a0, newline
+#    li   $v0, 4
+#    syscall
+#    move $v0, $t0
     
     lw    $s3, 0($v0)        # value = board[i][j]
     move    $a0, $s3        
@@ -407,14 +407,14 @@ r1_loop3:
     move    $a2, $s4        # k
     jal    board_address
     
-    move $a0, $s2
-    move $t0, $v0
-    li   $v0, 1
-    syscall
-    la   $a0, newline
-    li   $v0, 4
-    syscall
-    move $v0, $t0
+#    move $a0, $s2
+#    move $t0, $v0
+#    li   $v0, 1
+#    syscall
+#    la   $a0, newline
+#    li   $v0, 4
+#    syscall
+#    move $v0, $t0
     
     lw    $t0, 0($v0)        # board[i][k]
     and    $t1, $t0, $s3        
@@ -431,14 +431,14 @@ r1_skip_row:
     move    $a2, $s1        # j
     jal    board_address
     
-    move $a0, $s2
-    move $t0, $v0
-    li   $v0, 1
-    syscall
-    la   $a0, newline
-    li   $v0, 4
-    syscall
-    move $v0, $t0
+#    move $a0, $s2
+#    move $t0, $v0
+#    li   $v0, 1
+#    syscall
+#    la   $a0, newline
+#    li   $v0, 4
+#    syscall
+#    move $v0, $t0
     
     lw    $t0, 0($v0)        # board[k][j]
     and    $t1, $t0, $s3        
@@ -704,11 +704,11 @@ kick_interrupt_loop_done:
 puzzle_interrupt:
     # board is stored in passed in heap address
 ###################
-    la   $a0, sudoku
-    li   $v0, 4
+#    la   $a0, sudoku
+#    li   $v0, 4
     #syscall
-    la   $a0, newline
-    li   $v0, 4
+#    la   $a0, newline
+#    li   $v0, 4
     #syscall
 ###################
 
