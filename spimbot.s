@@ -211,7 +211,11 @@ main_runto_moveB:
     sw   $t4, 0xffff0014($0)                     # set ORIENTATION_VALUE to arctan
     li   $t4, 1
     sw   $t4, 0xffff0018($0)                     # set ORIENTATION_CONTROL to absolute
-    li   $t4, 1
+    li   $t4, 10
+
+    lw   $t9, ball_to_kick
+    bge  $t9, 0, main_runto_end                  # check if there's a ball to kick
+
     sw   $t4, 0xffff0010($0)                     # run to ball via VELOCITY_VALUE
     j main_runto_end
 
@@ -674,8 +678,8 @@ non_intrpt:
     la   $a0, non_intrpt_str
     syscall
 ######################################
-#infiniteB:
-#    j infiniteB
+infiniteB:
+    j infiniteB
 ######################################
     j    interrupt_done
 
