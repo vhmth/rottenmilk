@@ -384,16 +384,6 @@ r1_loop2:
     move     $a1, $s0        # i
     move    $a2, $s1        # j
     jal    board_address
-    
-#    move $a0, $s2
-#    move $t0, $v0
-#    li   $v0, 1
-#    syscall
-#    la   $a0, newline
-#    li   $v0, 4
-#    syscall
-#    move $v0, $t0
-    
     lw    $s3, 0($v0)        # value = board[i][j]
     move    $a0, $s3        
     jal    is_singleton
@@ -406,16 +396,6 @@ r1_loop3:
     move     $a1, $s0        # i
     move    $a2, $s4        # k
     jal    board_address
-    
-#    move $a0, $s2
-#    move $t0, $v0
-#    li   $v0, 1
-#    syscall
-#    la   $a0, newline
-#    li   $v0, 4
-#    syscall
-#    move $v0, $t0
-    
     lw    $t0, 0($v0)        # board[i][k]
     and    $t1, $t0, $s3        
     beq    $t1, 0, r1_skip_row
@@ -430,16 +410,6 @@ r1_skip_row:
     move     $a1, $s4        # k
     move    $a2, $s1        # j
     jal    board_address
-    
-#    move $a0, $s2
-#    move $t0, $v0
-#    li   $v0, 1
-#    syscall
-#    la   $a0, newline
-#    li   $v0, 4
-#    syscall
-#    move $v0, $t0
-    
     lw    $t0, 0($v0)        # board[k][j]
     and    $t1, $t0, $s3        
     beq    $t1, 0, r1_skip_col
@@ -671,9 +641,9 @@ interrupt_dispatch:
     and  $a0, $k0, 0x4000
     bne  $a0, 0, puzzle_interrupt
 
-    li   $v0, 4
-    la   $a0, unhandled_str
-    syscall
+#    li   $v0, 4
+#    la   $a0, unhandled_str
+#    syscall
 
     j    interrupt_done
 
@@ -720,12 +690,12 @@ puzzle_interrupt:
     j    interrupt_dispatch
 
 non_intrpt:
-    li   $v0, 4
-    la   $a0, non_intrpt_str
-    syscall
+#    li   $v0, 4
+#    la   $a0, non_intrpt_str
+#    syscall
 ######################################
-infiniteB:
-    j infiniteB
+#infiniteB:
+#    j infiniteB
 ######################################
     j    interrupt_done
 
