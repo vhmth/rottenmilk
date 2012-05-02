@@ -1,7 +1,18 @@
 We go through things in a priority-wise manner. Our main loop acts as a base
-for all of the events we want to run in order. We have global variables that
-tell us whether there's a ball to kick or a suduko puzzle to solve. These globals
-allow us to update them within the interrupt handlers so that we don't disturb
-the flow of the main loop.
+for all of the items we want to run in order. We have global variables that
+tell us whether there's a ball to kick or a suduko puzzle to solve. These globals,
+stored in the heap, allow us to update them within the interrupt handlers so that
+we don't disturb the flow of the main loop.  This makes interrupt handlers non-blocking,
+which means that we can handle more important interrupts sooner.
 
-Firstly, we check if there's a ball to kick. If there
+Firstly, we check if there's a ball to kick. This is the highest priority item-
+if there is a ball to kick we want to kick it first (before moving- potentially
+away from it).  This is a simple priority item to handle: if there is no kickable
+ball we should kick it.  Otherwise, kick the ball towards the center of the opponent's
+goal.
+
+Secondly, we check our bot's movement.  We move towards the closest ball- which accounts
+for moving balls (constantly updating the location we go to) and new balls appearing.
+
+Thirdly, we one iteration of rule1.  Rather than solving every rule, we throw out the
+Sudoku if it is unsolvable by rule1 and grab a new one- we see this as the fastest option.
