@@ -30,7 +30,6 @@ main:
 
     # set our interrupts
     li   $t4, 0x6001                             # enable suduko and kick
-    li   $t4, 0x2001                             # enable suduko and kick
     mtc0 $t4, $12
 
     # set up our stack variables
@@ -79,10 +78,10 @@ main_kickball:
 ###################
     la   $a0, kick
     li   $v0, 4
-    syscall
+    #syscall
     la   $a0, newline
     li   $v0, 4
-    syscall
+    #syscall
 ###################
 
     # make spimbot's velocity 0
@@ -176,10 +175,10 @@ main_runto_move:
 ###################
     la   $a0, runto
     li   $v0, 4
-    syscall
+    #syscall
     la   $a0, newline
     li   $v0, 4
-    syscall
+    #syscall
 ###################
 
     bne  $t6, 180000, main_runto_moveB           # any balls on the field?
@@ -241,10 +240,10 @@ main_sudoku:
 ###################
     la   $a0, sudoku
     li   $v0, 4
-    syscall
+    #syscall
     la   $a0, newline
     li   $v0, 4
-    syscall
+    #syscall
 ###################
 
 main_sudoku_solve:
@@ -654,6 +653,15 @@ kick_interrupt_loop_done:
 
 puzzle_interrupt:
     # board is stored in passed in heap address
+###################
+    la   $a0, sudoku
+    li   $v0, 4
+    #syscall
+    la   $a0, newline
+    li   $v0, 4
+    #syscall
+###################
+
     lw   $a0, boards_pending                     # decrement boards_pending
     sub  $a0, $a0, 1
     sw   $a0, boards_pending
