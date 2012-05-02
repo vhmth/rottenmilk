@@ -18,11 +18,12 @@
     boards_cur:     .word 0                      # the current board to solve (rotates between 0 and boards_max)
     boards_pending: .word 0                      # the number of boards being generated
     boards_max:     .word 2                      # the max number of boards
-    newline_str:    .asciiz "\n"
 
-    # test: print_board
-    newline:.asciiz "\n"        # useful for printing commands
-    star:    .asciiz "*"
+    newline:        .asciiz "\n"        # useful for printing commands
+    star:           .asciiz "*"
+    kick:           .asciiz "kick"
+    runto:          .asciiz "run"
+    sudoku:         .asciiz "sudoku"
 
 .text
 main:
@@ -61,6 +62,7 @@ main_init_boards:
 
 main_while:
 
+################### START KICK ####################
 main_kickball:
     # 1.) check if ball_to_kick is greater than equal to zero
     #
@@ -73,6 +75,15 @@ main_kickball:
 
     lw   $t2, ball_to_kick
     bltz $t2, main_kickball_end                  # if there are no balls to kick
+
+###################
+    la   $a0, kick
+    li   $v0, 4
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+###################
 
     # make spimbot's velocity 0
     li   $t0, 0
@@ -111,10 +122,12 @@ main_kickball:
     div  $t0, $t1, $t0
     sw   $t0, 0xffff00c8($0)                     # kick with 25% energy, KICK_ENERGY
 
-main_kickball_end:
+main_kickball_end:                               # should have already kicked the ball
     li   $t0, -1
     sw   $t0, ball_to_kick
+################### END KICK ####################
 
+################### START RUNTO ####################
 main_runto:
     # 2.) check closest ball that exists on field
     #
@@ -129,7 +142,7 @@ main_runto:
 
 main_runto_while:
     lw   $t9, ball_to_kick
-    bge  $t9, 0, main_kickball                   # check if there's a ball to kick
+    bge  $t9, 0, main_runto_end                  # check if there's a ball to kick
 
     beq  $t1, 4, main_runto_move                 # found closest ball to run to
 
@@ -158,17 +171,26 @@ main_runto_whileB:
 
 main_runto_move:
     lw   $t9, ball_to_kick
-    bge  $t9, 0, main_kickball                   # check if there's a ball to kick
+    bge  $t9, 0, main_runto_end                  # check if there's a ball to kick
+
+###################
+    la   $a0, runto
+    li   $v0, 4
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+###################
 
     bne  $t6, 180000, main_runto_moveB           # any balls on the field?
     li   $t0, 0                                  # set velocity to zero
     sw   $t0, 0xffff0010($0)
-    j    main_runto                              # look for other balls
+    j    main_runto_end                          # done for now
 
 main_runto_moveB:
     sw   $t0, 0xffff00d0($0)                     # SELECT_BALL
     lw   $t1, 0xffff00e0($0)                     # BALL_EXISTS
-    beq  $t1, 0, main_runto_end                  # check if this ball exists
+    beq  $t1, 0, main_runto_stop                  # check if this ball exists
 
 #########################
 #    li   $v0, 1
@@ -192,13 +214,16 @@ main_runto_moveB:
     sw   $t4, 0xffff0018($0)                     # set ORIENTATION_CONTROL to absolute
     li   $t4, 1
     sw   $t4, 0xffff0010($0)                     # run to ball via VELOCITY_VALUE
-    j main_while_end
+    j main_runto_end
 
-main_runto_end:
+main_runto_stop:
     li   $t0, 0
     sw   $t0, 0xffff0010($0)
-    j    main_runto
 
+main_runto_end:
+################### END RUNTO ####################
+
+################### START SUDOKU ####################
 main_sudoku:
     # 3.) solve the sudoku puzzel
     #
@@ -212,6 +237,16 @@ main_sudoku:
     lw   $t0, boards_max
     lw   $t1, boards_pending
     beq  $t0, $t1, main_sudoku_end               # no valid boards to solve, all pending
+
+###################
+    la   $a0, sudoku
+    li   $v0, 4
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+###################
+
 main_sudoku_solve:
     # TODO: handle rule2 and brute force
     lw   $t0, boards_cur
@@ -231,7 +266,7 @@ main_sudoku_solve:
 #    move $a0, $v0
 #    li   $v0, 1
 #    syscall
-#    la   $a0, newline_str
+#    la   $a0, newline
 #    li   $v0, 4
 #    syscall
 #    move $v0, $s4
@@ -255,6 +290,7 @@ main_sudoku_getnext:                             # solved a board, request anoth
     sw   $t0, boards_pending
 
 main_sudoku_end:
+################### END SUDOKU ####################
 
 main_while_end:
     # 4.) jump to top of loop
@@ -630,8 +666,8 @@ non_intrpt:
     la   $a0, non_intrpt_str
     syscall
 ######################################
-infiniteB:
-    j infiniteB
+#infiniteB:
+#    j infiniteB
 ######################################
     j    interrupt_done
 
