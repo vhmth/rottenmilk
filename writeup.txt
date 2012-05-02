@@ -1,0 +1,7 @@
+We go through things in a priority-wise manner. Our main loop acts as a base
+for all of the events we want to run in order. We have global variables that
+tell us whether there's a ball to kick or a suduko puzzle to solve. These globals
+allow us to update them within the interrupt handlers so that we don't disturb
+the flow of the main loop.
+
+Firstly, we check if there's a ball to kick. If there
