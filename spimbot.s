@@ -14,7 +14,7 @@
     ball_to_kick:   .word -1
     goal_x:         .word 0                      # default to the left goal
 
-    boards:         .space 648                   # the boards' storage space: 324 bytes per board; 324 = 4 * 9 * 9 = word size * # sudoku spaces on 1 board = memory for 1 board
+    boards:         .space 1000                  # the boards' storage space: 324 bytes per board; 324 = 4 * 9 * 9 = word size * # sudoku spaces on 1 board = memory for 1 board
     boards_cur:     .word 0                      # the current board to solve (rotates between 0 and boards_max)
     boards_pending: .word 0                      # the number of boards being generated
     boards_max:     .word 2                      # the max number of boards
@@ -259,20 +259,27 @@ main_sudoku_solve:
     move $a0, $s0
 
     # test: print board
-#    jal print_board
-#    move $a0, $s0
+    #jal print_board
+    #move $a0, $s0
+    move $a0, $s0
+    li   $v0, 1
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+    move $a0, $s0
 
     jal  rule1                              # limit on jumps, jump to a halfway point first
 
     # test: print rule1 result
-#    move $s4, $v0
-#    move $a0, $v0
-#    li   $v0, 1
-#    syscall
-#    la   $a0, newline
-#    li   $v0, 4
-#    syscall
-#    move $v0, $s4
+    move $s4, $v0
+    move $a0, $v0
+    li   $v0, 1
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+    move $v0, $s4
 
     bne  $v0, 0, main_sudoku_end                # if we made a successful pass with our rules, go back to main loop and wait for next cycle
 
@@ -286,6 +293,15 @@ main_sudoku_solve:
     li   $t0, 0                                  # wrap around
 
 main_sudoku_getnext:                             # solved a board, request another
+###################
+    la   $a0, sudoku
+    li   $v0, 4
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+###################
+
     sw   $t0, boards_cur
     sw   $s0, 0xffff00e8($0)                     # SUDOKU_GET- writes 324 bytes to the address passed in
     lw   $t0, boards_pending                     # increment boards_pending
@@ -368,6 +384,16 @@ r1_loop2:
     move     $a1, $s0        # i
     move    $a2, $s1        # j
     jal    board_address
+    
+    move $a0, $s2
+    move $t0, $v0
+    li   $v0, 1
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+    move $v0, $t0
+    
     lw    $s3, 0($v0)        # value = board[i][j]
     move    $a0, $s3        
     jal    is_singleton
@@ -380,6 +406,16 @@ r1_loop3:
     move     $a1, $s0        # i
     move    $a2, $s4        # k
     jal    board_address
+    
+    move $a0, $s2
+    move $t0, $v0
+    li   $v0, 1
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+    move $v0, $t0
+    
     lw    $t0, 0($v0)        # board[i][k]
     and    $t1, $t0, $s3        
     beq    $t1, 0, r1_skip_row
@@ -394,6 +430,16 @@ r1_skip_row:
     move     $a1, $s4        # k
     move    $a2, $s1        # j
     jal    board_address
+    
+    move $a0, $s2
+    move $t0, $v0
+    li   $v0, 1
+    syscall
+    la   $a0, newline
+    li   $v0, 4
+    syscall
+    move $v0, $t0
+    
     lw    $t0, 0($v0)        # board[k][j]
     and    $t1, $t0, $s3        
     beq    $t1, 0, r1_skip_col
